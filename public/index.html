@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pik-König</title>
+<meta name="description" content="Kartenspiel für 2–6 Spieler. Wer am Ende den Pik-König hält, verliert.">
+<meta property="og:title" content="Pik-König – spiel mit!">
+<meta property="og:description" content="Tippen, Namen eingeben, mitspielen. Keine Anmeldung.">
+<meta name="theme-color" content="#0e2a22">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,700;6..96,900&family=Figtree:wght@400;600;700&display=swap">
+<style>
+/* Layout: eine schmale Spalte auf grünem Filz – Status, Plätze, Ziehfeld, Stapel, unten deine Hand. */
+:root{
+  --felt:#1c4a3d; --felt-deep:#0e2a22; --felt-line:#2b6453;
+  --ink:#f2ead8; --muted:#a7c3b5;
+  --card:#fbf7ee; --card-ink:#1c1b20; --card-red:#bf2430;
+  --brass:#dcb75c; --brass-ink:#2a2006;
+  --back:#6e1f2c; --back-2:#8c2c3a;
+  --danger:#e08573; --ok:#7fd69a;
+  --f-display:"Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%;margin:0}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:var(--felt-deep)}
+body{
+  background:radial-gradient(120% 80% at 50% 0%, var(--felt) 0%, var(--felt-deep) 100%) fixed, var(--felt-deep);
+  color:var(--ink); font-family:var(--f-body); font-size:15px; line-height:1.45;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:12px 32px;
+  -webkit-text-size-adjust:100%;
+}
+[hidden]{display:none!important}
+.app{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--felt-line)}
+.brand{font-family:var(--f-display);font-weight:900;font-size:28px;letter-spacing:.01em;line-height:1;display:flex;align-items:center;gap:8px;color:var(--ink);text-decoration:none}
+.brand .crown{color:var(--brass);font-size:24px}
+.conn{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;flex:none}
+.dot.on{background:var(--ok)}.dot.off{background:var(--danger)}
+
+.notice{background:rgba(0,0,0,.25);border:1px solid var(--felt-line);border-radius:10px;padding:12px 14px}
+
+.panel{display:flex;flex-direction:column;gap:10px}
+.label{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input[type=text]{flex:1 1 160px;min-width:0;background:rgba(0,0,0,.28);border:1px solid var(--felt-line);border-radius:8px;padding:11px 12px;color:var(--ink);font:inherit;font-size:16px}
+input[type=text]::placeholder{color:var(--muted)}
+.btn{border:0;border-radius:8px;padding:11px 16px;font-weight:700;cursor:pointer;background:var(--brass);color:var(--brass-ink);min-height:44px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--felt-line)}
+.btn.small{min-height:34px;padding:6px 12px;font-size:13px}
+.btn.link{background:none;color:var(--muted);padding:6px 4px;min-height:0;text-decoration:underline;font-weight:600}
+.btn.wide{width:100%}
+
+/* Startseite */
+.hero{display:flex;flex-direction:column;gap:18px;padding-top:18px}
+.hero h1{margin:0;font-family:var(--f-display);font-weight:900;font-size:clamp(40px,12vw,64px);line-height:.95;text-wrap:balance}
+.hero h1 em{font-style:normal;color:var(--brass)}
+.hero p{margin:0;color:var(--muted);max-width:34ch}
+.fan{position:relative;height:120px;margin:4px 0 6px}
+.fan .card{position:absolute;width:74px;left:50%;top:10px;cursor:default}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--felt-line)}
+#codeIn{text-transform:uppercase;letter-spacing:.2em;font-weight:700}
+
+/* Einladen */
+.invite{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:10px;border:1px solid var(--brass);background:rgba(220,183,92,.08)}
+.invite .code{font-family:var(--f-display);font-weight:900;font-size:30px;letter-spacing:.12em;line-height:1}
+.invite .url{font-size:13px;color:var(--muted);word-break:break-all;user-select:all;-webkit-user-select:all}
+.qr{width:180px;max-width:100%;aspect-ratio:1;border-radius:8px;background:var(--card);padding:6px}
+
+.plist{display:flex;flex-direction:column;border-top:1px solid var(--felt-line)}
+.prow{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--felt-line)}
+.prow .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.seatno{font-family:var(--f-display);font-weight:700;color:var(--brass);width:18px;text-align:center}
+.tag{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border:1px solid var(--felt-line);border-radius:99px;padding:2px 8px;white-space:nowrap}
+.tag.you{color:var(--brass);border-color:var(--brass)}
+.hint{color:var(--muted);font-size:13px}
+
+.rules{border:1px solid var(--felt-line);border-radius:10px;padding:10px 14px;background:rgba(0,0,0,.15)}
+.rules summary{cursor:pointer;font-weight:700}
+.rules ol{margin:8px 0 2px;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+
+.banner{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:10px;background:rgba(0,0,0,.22);border:1px solid var(--felt-line)}
+.banner.turn{border-color:var(--brass);background:rgba(220,183,92,.12)}
+.banner .big{font-family:var(--f-display);font-weight:700;font-size:21px;line-height:1.2;text-wrap:balance}
+.banner .sub{color:var(--muted);font-size:13px}
+
+.seats{display:flex;flex-wrap:wrap;gap:8px}
+.seat{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 8px;border-radius:99px;background:rgba(0,0,0,.22);border:1px solid var(--felt-line);font-size:13px;max-width:100%}
+.seat.cur{border-color:var(--brass);box-shadow:0 0 0 1px var(--brass) inset}
+.seat.out{opacity:.6}
+.seat .nm{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px}
+.seat .cnt{display:flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.mini{width:10px;height:14px;border-radius:2px;background:var(--back);border:1px solid var(--back-2);display:inline-block}
+
+/* Karten */
+.card{
+  position:relative;aspect-ratio:5/7;width:100%;border-radius:7px;border:0;padding:0;
+  background:var(--card);color:var(--card-ink);box-shadow:0 1px 0 rgba(0,0,0,.35),0 3px 8px rgba(0,0,0,.25);
+  font-family:var(--f-display);cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  touch-action:manipulation;transition:transform .12s ease, box-shadow .12s ease;container-type:inline-size;
+}
+.card.red{color:var(--card-red)}
+.card .ix{position:absolute;left:6%;top:4%;display:flex;flex-direction:column;align-items:center;line-height:.95;font-weight:900;font-size:max(14px, 30cqw)}
+.card .ix i{font-style:normal;font-size:.8em}
+.card .pip{position:absolute;inset:0;display:grid;place-items:center;font-size:max(22px, 52cqw);padding-top:12%;line-height:1}
+.card.sel{transform:translateY(-8px);box-shadow:0 0 0 3px var(--brass),0 8px 16px rgba(0,0,0,.35)}
+.card.new::after{content:"neu";position:absolute;right:5%;bottom:4%;font-family:var(--f-body);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--brass);color:var(--brass-ink);border-radius:4px;padding:1px 4px}
+.card.lifted{opacity:.25}
+.card.back{
+  background:
+    repeating-linear-gradient(45deg, transparent 0 6px, rgba(255,255,255,.07) 6px 7px),
+    repeating-linear-gradient(-45deg, transparent 0 6px, rgba(255,255,255,.07) 6px 7px),
+    var(--back);
+  border:3px solid var(--card);
+}
+.dragghost{position:fixed;left:0;top:0;width:var(--w);pointer-events:none;z-index:50;opacity:.95}
+
+.drawzone{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:10px;border:1px dashed var(--brass)}
+.backs{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:8px}
+.backs .card:disabled{cursor:default;opacity:.6}
+
+.table{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start}
+.pile{display:flex;flex-direction:column;align-items:center;gap:6px;width:92px}
+.pile .stack{position:relative;width:76px;height:92px}
+.pile .stack .card{position:absolute;width:58px;top:0;cursor:default}
+.pile .stack .card:first-child{left:0;transform:rotate(-8deg)}
+.pile .stack .card:last-child{left:18px;transform:rotate(7deg)}
+.pile .empty{width:58px;aspect-ratio:5/7;border-radius:7px;border:1px dashed var(--felt-line)}
+.pile .cap{font-size:12px;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);min-width:0}
+.log li:last-child{color:var(--ink)}
+
+.handhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.handhead h2{margin:0;font-family:var(--f-display);font-weight:700;font-size:20px}
+.hand{display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:10px 8px;padding-top:8px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;position:sticky;bottom:0;padding:10px 0 calc(10px + env(safe-area-inset-bottom, 0px));background:linear-gradient(to top, var(--felt-deep) 70%, transparent)}
+.actions .btn{flex:1 1 auto}
+
+.endbox{display:flex;align-items:center;gap:14px}
+.endbox .card{width:70px;flex:none;cursor:default}
+.rank{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:2px}
+
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);background:var(--card);color:var(--card-ink);padding:10px 16px;border-radius:99px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.4);z-index:60;max-width:calc(100% - 32px);text-align:center}
+@media (max-width:420px){ .brand{font-size:24px} .hand{grid-template-columns:repeat(auto-fill,minmax(52px,1fr))} }
+@media (prefers-reduced-motion:reduce){ .card{transition:none} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <a class="brand" href="/"><span class="crown" aria-hidden="true">♚</span>Pik-König</a>
+    <div id="conn" class="conn"></div>
+  </header>
+
+  <!-- Startseite -->
+  <section id="home" class="hero" hidden>
+    <div class="fan" id="fan" aria-hidden="true"></div>
+    <h1>Wer den <em>Pik-König</em> behält, verliert.</h1>
+    <p>Kartenspiel für 2 bis 6 Leute, jeder am eigenen Handy. Keine Anmeldung, kein Download.</p>
+    <a class="btn wide" href="/new">Neuen Raum erstellen</a>
+    <div class="or">oder Raum-Code eingeben</div>
+    <div class="row">
+      <input type="text" id="codeIn" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="z. B. K7QHM">
+      <button class="btn ghost" id="codeBtn" type="button">Beitreten</button>
+    </div>
+  </section>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <!-- Raum: Tisch vor dem Spiel -->
+  <section id="lobby" class="panel" hidden>
+    <div class="invite">
+      <div class="row" style="justify-content:space-between">
+        <div><div class="label">Raum</div><div class="code" id="roomCode"></div></div>
+        <button class="btn" id="shareBtn" type="button">Freunde einladen</button>
+      </div>
+      <div class="url" id="roomUrl"></div>
+      <div class="row">
+        <button class="btn ghost small" id="copyBtn" type="button">Link kopieren</button>
+        <button class="btn ghost small" id="qrBtn" type="button">QR-Code</button>
+      </div>
+      <img id="qrImg" class="qr" alt="QR-Code zum Beitreten" hidden>
+    </div>
+    <div class="panel">
+      <label class="label" for="nm">Dein Name</label>
+      <div class="row">
+        <input type="text" id="nm" maxlength="16" autocomplete="off" placeholder="z. B. Lena">
+        <button class="btn" id="joinBtn" type="button">Hinsetzen</button>
+      </div>
+      <div id="joinHint" class="hint"></div>
+    </div>
+    <div>
+      <div class="label" id="lobbyCount">Am Tisch</div>
+      <div id="lobbyList" class="plist"></div>
+    </div>
+    <div id="lobbyClaim" class="panel"></div>
+    <div id="hostCtl" class="row"></div>
+    <details class="rules">
+      <summary>So wird gespielt</summary>
+      <ol>
+        <li>49 Karten: ein normales Deck ohne Herz-, Karo- und Kreuz-König. Nur der Pik-König bleibt drin.</li>
+        <li>Alle Karten werden verteilt, manche haben eine Karte mehr.</li>
+        <li>Erst legt jeder seine Paare ab: zwei Karten gleichen Werts antippen, dann „Paar ablegen“. Drillinge ergeben ein Paar plus eine Einzelkarte. Danach „Fertig“ tippen.</li>
+        <li>Ein zufälliger Spieler beginnt und zieht verdeckt eine Karte vom nächsten Spieler im Uhrzeigersinn. Dann ist der nächste dran.</li>
+        <li>Paare darfst du jederzeit ablegen. Übersehene Paare bleiben auf der Hand.</li>
+        <li>Deine Hand kannst du sortieren: Karte gedrückt halten und verschieben, oder mischen. Wer bei dir zieht, sieht die Rückseiten in deiner Reihenfolge.</li>
+        <li>Wer keine Karten mehr hat, ist raus. Wer am Ende den Pik-König hält, verliert.</li>
+      </ol>
+    </details>
+  </section>
+
+  <!-- Raum: laufendes Spiel -->
+  <section id="game" class="panel" hidden>
+    <div id="banner" class="banner"></div>
+    <div id="seats" class="seats"></div>
+    <div id="draw" class="drawzone" hidden></div>
+    <div id="endbox" class="endbox" hidden></div>
+    <div class="table">
+      <div id="pile" class="pile"></div>
+      <ul id="log" class="log"></ul>
+    </div>
+    <div id="handWrap" class="panel">
+      <div class="handhead"><h2>Deine Hand</h2><span id="handInfo" class="hint"></span></div>
+      <div id="hand" class="hand"></div>
+    </div>
+    <div id="claim" class="panel"></div>
+    <div id="hostBar" class="row"></div>
+    <div id="actions" class="actions"></div>
+  </section>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(() => {
+  // ---------- Karten ----------
+  const SUITS = { S: '♠', H: '♥', D: '♦', C: '♣' };
+  const RLABEL = { J: 'B', Q: 'D', K: 'K', A: 'A' };
+  const rankOf = c => c.slice(0, -1);
+  const suitOf = c => c.slice(-1);
+  const rLabel = c => RLABEL[rankOf(c)] || rankOf(c);
+  const label = c => rLabel(c) + SUITS[suitOf(c)];
+  const isRed = c => suitOf(c) === 'H' || suitOf(c) === 'D';
+  const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const $ = id => document.getElementById(id);
+  const randInt = n => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; };
+  const shuffle = arr => { for (let i = arr.length - 1; i > 0; i--) { const j = randInt(i + 1); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
+
+  function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) {} return null; }
+  function rid() { const a = new Uint8Array(12); crypto.getRandomValues(a); return Array.from(a, b => b.toString(16).padStart(2, '0')).join(''); }
+
+  function cardHTML(c, cls = '', attrs = '') {
+    const king = c === 'KS';
+    return `<button type="button" class="card ${isRed(c) ? 'red' : ''} ${cls}" ${attrs} aria-label="${esc(label(c))}">`
+      + `<span class="ix">${rLabel(c)}<i>${SUITS[suitOf(c)]}</i></span>`
+      + `<span class="pip">${king ? '♚' : SUITS[suitOf(c)]}</span></button>`;
+  }
+
+  // ---------- Zustand ----------
+  const m = location.pathname.match(/^\/r\/([A-Za-z0-9]{4,8})\/?$/);
+  const code = m ? m[1].toUpperCase() : null;
+  const roomUrl = code ? `${location.origin}/r/${code}` : '';
+  let pid = ls('pk_pid');
+  if (!pid || !/^[a-f0-9]{16,40}$/.test(pid)) { pid = rid(); ls('pk_pid', pid); }
+  const me = { pid, name: (ls('pk_name') || '').slice(0, 16) };
+
+  let ws = null, connected = false, everConnected = false, retry = 0, retryTimer = null;
+  let v = null;
+  let lastN = 0;
+  let sel = [];
+  let localOrder = null, localOrderN = 0;
+  const hidden = new Map();
+  let pendingDrawK = -1;
+  let seenDrawK = null, lastTurnMine = false;
+  let drag = null, suppressClick = false;
+
+  // ---------- Verbindung ----------
+  function connect() {
+    clearTimeout(retryTimer);
+    if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const sock = new WebSocket(`${proto}://${location.host}/ws`);
+    ws = sock;
+    sock.onopen = () => {
+      connected = true; everConnected = true; retry = 0;
+      sock.send(JSON.stringify({ t: 'hello', room: code, pid: me.pid }));
+      render();
+    };
+    sock.onmessage = e => {
+      let msg; try { msg = JSON.parse(e.data); } catch (err) { return; }
+      if (msg.t === 'state') setView(msg);
+      else if (msg.t === 'error') toast(msg.msg);
+    };
+    sock.onclose = () => {
+      if (ws !== sock) return;
+      connected = false; render();
+      retryTimer = setTimeout(connect, Math.min(5000, 400 * 2 ** retry++));
+    };
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && code && (!ws || ws.readyState > 1)) { retry = 0; connect(); }
+    if (!document.hidden) keepAwake();
+  });
+
+  function send(msg) {
+    if (ws && ws.readyState === 1) { ws.send(JSON.stringify(msg)); return true; }
+    toast('Keine Verbindung, versuch es gleich nochmal');
+    return false;
+  }
+  function act(t, data = {}) {
+    const n = Math.max(Date.now(), lastN + 1); lastN = n;
+    return send(Object.assign({ t, n }, data)) ? n : 0;
+  }
+
+  // ---------- Empfangen ----------
+  const ack = () => (v && v.ack) || 0;
+  const mySeat = () => v && v.you ? v.players.find(p => p.sid === v.you) : null;
+  const seatBy = sid => v && v.players.find(p => p.sid === sid);
+  const nameOf = sid => { const p = seatBy(sid); return p ? p.name : '?'; };
+  function nextWith(i) {
+    const n = v.players.length;
+    for (let k = 1; k < n; k++) { const j = (i + k) % n; if (v.players[j].count) return j; }
+    return -1;
+  }
+
+  function setView(d) {
+    const prev = v;
+    v = d;
+    const a = ack();
+    for (const [c, n] of hidden) if (n <= a) hidden.delete(c);
+    if (!(drag && drag.active) && localOrder && localOrderN <= a) localOrder = null;
+    sel = sel.filter(c => v.hand.includes(c));
+    if (prev && prev.turn !== v.turn) pendingDrawK = -1;
+    // Hinweise
+    const ld = v.lastDraw;
+    if (ld && ld.k !== seenDrawK) {
+      if (seenDrawK !== null || prev) {
+        if (ld.by === v.you && ld.card) toast(`Du hast ${label(ld.card)} von ${nameOf(ld.from)} gezogen`);
+        else if (ld.from === v.you && ld.card) toast(`${nameOf(ld.by)} hat dir ${label(ld.card)} gezogen`);
+      }
+      seenDrawK = ld.k;
+    } else if (!ld) seenDrawK = seenDrawK === null ? 0 : seenDrawK;
+    const mine = v.phase === 'play' && v.turn >= 0 && v.players[v.turn] && v.players[v.turn].sid === v.you;
+    if (mine && !lastTurnMine) { try { navigator.vibrate && navigator.vibrate([40, 60, 40]); } catch (e) {} }
+    lastTurnMine = mine;
+    render();
+  }
+
+  function handOrder() {
+    if (!v) return [];
+    const a = ack();
+    let base = v.hand.slice();
+    if (localOrder && ((drag && drag.active) || localOrderN > a)) {
+      const have = new Set(base);
+      const o = localOrder.filter(c => have.has(c));
+      for (const c of base) if (!o.includes(c)) o.push(c);
+      base = o;
+    }
+    return base.filter(c => !(hidden.has(c) && hidden.get(c) > a));
+  }
+
+  let toastTimer = null;
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3200);
+  }
+
+  // ---------- Darstellung ----------
+  function render() {
+    $('home').hidden = !!code;
+    if (!code) { $('conn').innerHTML = ''; return; }
+    const c = $('conn');
+    if (connected) c.innerHTML = `<span class="dot on"></span>${v ? v.players.filter(p => p.online).length + (v.watchers || 0) : 1} online`;
+    else c.innerHTML = everConnected ? `<span class="dot off"></span>Getrennt` : `<span class="dot"></span>Verbinde`;
+
+    const n = $('notice');
+    let msg = '';
+    if (!connected && everConnected) msg = 'Verbindung weg. Ich verbinde automatisch neu …';
+    else if (!connected) msg = 'Verbinde mit dem Raum …';
+    n.textContent = msg; n.hidden = !msg;
+
+    const inGame = v && v.phase !== 'lobby';
+    $('lobby').hidden = !v || inGame;
+    $('game').hidden = !inGame;
+    if (!v) return;
+    if (inGame) renderGame(); else renderLobby();
+  }
+
+  function claimHTML() {
+    if (!v || mySeat()) return '';
+    const free = v.players.filter(p => !p.online);
+    if (!free.length) return v.phase !== 'lobby' ? '<div class="hint">Das Spiel läuft schon. Du schaust zu und kannst bei der nächsten Runde mitmachen.</div>' : '';
+    return `<div class="label">Warst du schon dabei?</div><div class="row">`
+      + free.map(p => `<button class="btn ghost small" type="button" data-a="claim" data-sid="${esc(p.sid)}">Ich bin ${esc(p.name)}</button>`).join('')
+      + `</div>`;
+  }
+
+  function renderLobby() {
+    const P = mySeat();
+    $('roomCode').textContent = code;
+    $('roomUrl').textContent = roomUrl;
+    $('shareBtn').textContent = navigator.share ? 'Freunde einladen' : 'Link kopieren';
+    $('copyBtn').hidden = !navigator.share;
+    const nm = $('nm');
+    if (document.activeElement !== nm && !nm.value) nm.value = me.name;
+    const full = v.players.length >= 6 && !P;
+    $('joinBtn').textContent = P ? 'Namen ändern' : 'Hinsetzen';
+    $('joinBtn').disabled = !connected || full;
+    $('joinHint').innerHTML = P
+      ? `Du sitzt am Tisch. <button class="btn link" type="button" data-a="leave">Aufstehen</button>`
+      : (full ? 'Der Tisch ist voll (6 Spieler).' : '');
+    $('lobbyCount').textContent = `Am Tisch · ${v.players.length} von 6`;
+    $('lobbyList').innerHTML = v.players.length
+      ? v.players.map((p, i) => `<div class="prow"><span class="seatno">${i + 1}</span><span class="dot ${p.online ? 'on' : 'off'}"></span><span class="n">${esc(p.name)}</span>`
+          + (p.host ? `<span class="tag">Gastgeber</span>` : '')
+          + (p.sid === v.you ? `<span class="tag you">du</span>` : '')
+          + (v.isHost && p.sid !== v.you ? `<button class="btn link" type="button" data-a="kick" data-sid="${esc(p.sid)}">entfernen</button>` : '')
+          + `</div>`).join('')
+      : `<div class="prow"><span class="n hint">Noch niemand. Gib deinen Namen ein und setz dich.</span></div>`;
+    $('lobbyClaim').innerHTML = claimHTML();
+    $('hostCtl').innerHTML = v.isHost
+      ? `<button class="btn" type="button" data-a="start" ${v.players.length >= 2 ? '' : 'disabled'}>Karten verteilen</button><span class="hint">${v.players.length < 2 ? 'Mindestens 2 Spieler' : 'Reihenfolge am Tisch = Uhrzeigersinn'}</span>`
+      : `<span class="hint">Der Gastgeber verteilt die Karten, sobald alle sitzen.</span>`;
+  }
+
+  function renderGame() {
+    const P = mySeat();
+    const cur = v.turn >= 0 ? v.players[v.turn] : null;
+    const myTurn = v.phase === 'play' && cur && cur.sid === v.you;
+    const ti = cur ? nextWith(v.turn) : -1;
+    const target = ti >= 0 ? v.players[ti] : null;
+
+    let big = '', sub = '';
+    if (v.phase === 'discard') {
+      const waiting = v.players.filter(p => !p.ready && p.count).map(p => p.name);
+      if (!P) big = 'Alle legen ihre Paare ab';
+      else if (!v.hand.length) big = 'Du hast keine Karten mehr';
+      else if (P.ready) big = 'Warte auf die anderen';
+      else big = 'Lege deine Paare ab';
+      sub = P && !P.ready && v.hand.length ? 'Tippe zwei gleiche Werte an, dann „Paar ablegen“. Danach „Fertig“.' : (waiting.length ? `Noch nicht fertig: ${waiting.join(', ')}` : '');
+    } else if (v.phase === 'play') {
+      if (myTurn) { big = `Du bist dran: zieh bei ${target ? target.name : '…'}`; sub = 'Tippe auf eine verdeckte Karte.'; }
+      else if (P && !v.hand.length) { big = 'Du bist raus, glückwunsch'; sub = cur ? `${cur.name} ist dran.` : ''; }
+      else if (cur) { big = `${cur.name} zieht bei ${target ? target.name : '…'}`; sub = P ? 'Paare kannst du jederzeit ablegen.' : 'Du schaust zu.'; }
+    } else if (v.phase === 'end') {
+      big = v.loser === v.you ? 'Du hast den Pik-König. Verloren!' : `${nameOf(v.loser)} verliert mit dem Pik-König`;
+      sub = `Runde ${v.round} ist vorbei.`;
+    }
+    const b = $('banner');
+    b.className = 'banner' + (myTurn ? ' turn' : '');
+    b.innerHTML = `<div class="big">${esc(big)}</div>${sub ? `<div class="sub">${esc(sub)}</div>` : ''}`;
+
+    $('seats').innerHTML = v.players.map((p, i) => {
+      const out = v.finish.indexOf(p.sid);
+      const tags = [];
+      if (p.sid === v.you) tags.push('<span class="tag you">du</span>');
+      if (v.phase === 'discard' && p.ready && p.count) tags.push('<span class="tag">fertig</span>');
+      if (out >= 0) tags.push(`<span class="tag">${out + 1}. raus</span>`);
+      if (v.phase === 'end' && v.loser === p.sid) tags.push('<span class="tag">♚ verloren</span>');
+      if (!p.online) tags.push('<span class="tag">offline</span>');
+      return `<div class="seat ${i === v.turn ? 'cur' : ''} ${out >= 0 ? 'out' : ''}"><span class="nm">${esc(p.name)}</span><span class="cnt"><span class="mini"></span>${p.count}</span>${tags.join('')}</div>`;
+    }).join('');
+
+    const dz = $('draw');
+    if (myTurn && target) {
+      const waiting = pendingDrawK === v.k;
+      dz.hidden = false;
+      dz.innerHTML = `<div class="label">Karten von ${esc(target.name)} · ${target.count}</div><div class="backs">`
+        + Array.from({ length: target.count }, (_, i) => `<button type="button" class="card back" data-draw="${i}" aria-label="Karte ${i + 1} ziehen" ${waiting ? 'disabled' : ''}></button>`).join('')
+        + `</div>`;
+    } else { dz.hidden = true; dz.innerHTML = ''; }
+
+    const eb = $('endbox');
+    if (v.phase === 'end') {
+      eb.hidden = false;
+      eb.innerHTML = `${cardHTML('KS', '', 'tabindex="-1" disabled')}<div><div class="label">Reihenfolge</div><ol class="rank">`
+        + v.finish.map(s => `<li>${esc(nameOf(s))}</li>`).join('')
+        + (v.loser ? `<li>${esc(nameOf(v.loser))} ♚</li>` : '') + `</ol></div>`;
+    } else { eb.hidden = true; eb.innerHTML = ''; }
+
+    $('pile').innerHTML = (v.top.length === 2
+      ? `<div class="stack">${cardHTML(v.top[0], '', 'tabindex="-1" disabled')}${cardHTML(v.top[1], '', 'tabindex="-1" disabled')}</div>`
+      : `<div class="empty"></div>`) + `<div class="cap">${v.pairs} ${v.pairs === 1 ? 'Paar' : 'Paare'} abgelegt</div>`;
+    $('log').innerHTML = v.log.slice(-4).map(l => `<li>${esc(l)}</li>`).join('');
+
+    $('handWrap').hidden = !P;
+    renderHand();
+    $('claim').innerHTML = claimHTML();
+
+    let hb = '';
+    if (v.isHost) {
+      if (v.phase === 'end') hb += `<button class="btn" type="button" data-a="again">Neue Runde verteilen</button>`;
+      if (v.phase === 'play' && cur && !cur.online) hb += `<button class="btn ghost small" type="button" data-a="force">Für ${esc(cur.name)} zufällig ziehen</button>`;
+      hb += `<button class="btn link" type="button" data-a="tolobby">Zurück an den Tisch (Spieler ändern)</button>`;
+    } else if (v.phase === 'end') hb = `<span class="hint">Der Gastgeber kann eine neue Runde verteilen.</span>`;
+    $('hostBar').innerHTML = hb;
+
+    renderActions();
+  }
+
+  function renderHand() {
+    const h = $('hand');
+    if (!v || !mySeat()) { h.innerHTML = ''; return; }
+    const order = handOrder();
+    const newC = v.lastDraw && v.lastDraw.by === v.you ? v.lastDraw.card : null;
+    h.innerHTML = order.length
+      ? order.map(c => cardHTML(c, `${sel.includes(c) ? 'sel' : ''} ${c === newC ? 'new' : ''} ${drag && drag.active && drag.c === c ? 'lifted' : ''}`, `data-c="${c}"`)).join('')
+      : `<span class="hint">Keine Karten auf der Hand.</span>`;
+    $('handInfo').textContent = order.length ? `${order.length} Karten · halten zum Verschieben` : '';
+  }
+
+  function renderActions() {
+    const P = mySeat();
+    const box = $('actions');
+    if (!P || !(v.phase === 'discard' || v.phase === 'play') || !v.hand.length) { box.innerHTML = ''; box.hidden = true; return; }
+    box.hidden = false;
+    const two = sel.length === 2;
+    const isPair = two && rankOf(sel[0]) === rankOf(sel[1]);
+    let html = `<button class="btn" type="button" data-a="pair" ${isPair ? '' : 'disabled'}>${two && !isPair ? 'Kein Paar' : 'Paar ablegen'}</button>`;
+    if (sel.length === 1) html += `<button class="btn ghost" type="button" data-a="left" aria-label="Nach links">◀</button><button class="btn ghost" type="button" data-a="right" aria-label="Nach rechts">▶</button>`;
+    else html += `<button class="btn ghost" type="button" data-a="shuffle">Mischen</button>`;
+    if (v.phase === 'discard') html += P.ready
+      ? `<button class="btn ghost" type="button" data-a="unready">Doch nicht fertig</button>`
+      : `<button class="btn" type="button" data-a="ready">Fertig</button>`;
+    box.innerHTML = html;
+  }
+
+  // ---------- Bedienung ----------
+  function sendOrder(o) { localOrder = o.slice(); localOrderN = act('order', { o }); renderHand(); }
+
+  async function copyLink() {
+    try { await navigator.clipboard.writeText(roomUrl); toast('Link kopiert'); }
+    catch (e) {
+      const r = document.createRange(); r.selectNodeContents($('roomUrl'));
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      toast('Link markiert, jetzt kopieren');
+    }
+  }
+  $('shareBtn').addEventListener('click', async () => {
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Pik-König', url: roomUrl }); } catch (e) { if (e && e.name !== 'AbortError') copyLink(); }
+    } else copyLink();
+  });
+  $('copyBtn').addEventListener('click', copyLink);
+  $('qrBtn').addEventListener('click', () => {
+    const img = $('qrImg');
+    if (!img.src) img.src = '/qr.svg?u=' + encodeURIComponent(roomUrl);
+    img.hidden = !img.hidden;
+  });
+
+  function goCode() {
+    const c = $('codeIn').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (c.length < 4) { $('codeIn').focus(); return; }
+    location.href = '/r/' + c;
+  }
+  $('codeBtn').addEventListener('click', goCode);
+  $('codeIn').addEventListener('keydown', e => { if (e.key === 'Enter') goCode(); });
+
+  function join() {
+    const n = $('nm').value.trim().slice(0, 16);
+    if (!n) { $('nm').focus(); return; }
+    me.name = n; ls('pk_name', n);
+    act('join', { name: n });
+    $('nm').blur();
+    keepAwake();
+  }
+  $('joinBtn').addEventListener('click', join);
+  $('nm').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
+
+  document.addEventListener('click', e => {
+    if (suppressClick) { suppressClick = false; if (e.target.closest('#hand')) return; }
+    const card = e.target.closest('#hand .card[data-c]');
+    if (card) {
+      const c = card.dataset.c;
+      if (sel.includes(c)) sel = sel.filter(x => x !== c);
+      else { sel.push(c); if (sel.length > 2) sel.shift(); }
+      renderHand(); renderActions();
+      return;
+    }
+    const dr = e.target.closest('[data-draw]');
+    if (dr && !dr.disabled) {
+      if (act('draw', { i: Number(dr.dataset.draw) })) {
+        pendingDrawK = v.k;
+        $('draw').querySelectorAll('[data-draw]').forEach(b => { b.disabled = true; });
+        dr.style.transform = 'translateY(-14px)';
+      }
+      return;
+    }
+    const btn = e.target.closest('[data-a]');
+    if (!btn || btn.disabled) return;
+    keepAwake();
+    const a = btn.dataset.a;
+    switch (a) {
+      case 'pair': {
+        if (sel.length !== 2) return;
+        const n = act('pair', { a: sel[0], b: sel[1] });
+        if (n) { hidden.set(sel[0], n); hidden.set(sel[1], n); sel = []; }
+        renderHand(); renderActions();
+        break;
+      }
+      case 'shuffle': sendOrder(shuffle(handOrder())); break;
+      case 'left': case 'right': {
+        const o = handOrder(); const i = o.indexOf(sel[0]); const j = a === 'left' ? i - 1 : i + 1;
+        if (i < 0 || j < 0 || j >= o.length) return;
+        [o[i], o[j]] = [o[j], o[i]]; sendOrder(o); renderActions();
+        break;
+      }
+      case 'ready': act('ready', { on: true }); break;
+      case 'unready': act('ready', { on: false }); break;
+      case 'leave': act('leave'); break;
+      case 'claim': act('claim', { sid: btn.dataset.sid }); break;
+      case 'kick': act('kick', { sid: btn.dataset.sid }); break;
+      case 'start': case 'again': case 'tolobby': case 'force': act(a); break;
+    }
+  });
+
+  // Sortieren: auf dem Handy gedrückt halten und ziehen, mit der Maus direkt ziehen
+  const handEl = $('hand');
+  handEl.addEventListener('pointerdown', e => {
+    const el = e.target.closest('.card[data-c]'); if (!el) return;
+    drag = { c: el.dataset.c, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, active: false, pid: e.pointerId, type: e.pointerType, w: el.getBoundingClientRect().width };
+    if (e.pointerType !== 'mouse') drag.timer = setTimeout(() => { if (drag && !drag.active) startDrag(); }, 280);
+  });
+  function startDrag() {
+    drag.active = true;
+    localOrder = handOrder();
+    const el = handEl.querySelector(`.card[data-c="${drag.c}"]`);
+    const g = document.createElement('div');
+    g.className = 'dragghost'; g.style.setProperty('--w', drag.w + 'px');
+    g.innerHTML = el ? el.outerHTML : '';
+    document.body.appendChild(g); drag.ghost = g;
+    placeGhost();
+    try { navigator.vibrate && navigator.vibrate(15); } catch (e) {}
+    renderHand();
+  }
+  function placeGhost() { if (drag && drag.ghost) drag.ghost.style.transform = `translate(${drag.x - drag.w / 2}px, ${drag.y - drag.w * 0.7}px) rotate(-4deg) scale(1.08)`; }
+  document.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.pid) return;
+    drag.x = e.clientX; drag.y = e.clientY;
+    if (!drag.active) {
+      if (Math.hypot(drag.x - drag.x0, drag.y - drag.y0) > 8) {
+        if (drag.type === 'mouse') startDrag(); else { clearTimeout(drag.timer); drag = null; }
+      }
+      return;
+    }
+    placeGhost();
+    const over = document.elementFromPoint(drag.x, drag.y);
+    const el = over && over.closest('#hand .card[data-c]');
+    if (el && el.dataset.c !== drag.c) {
+      const from = localOrder.indexOf(drag.c), to = localOrder.indexOf(el.dataset.c);
+      if (from >= 0 && to >= 0) { localOrder.splice(from, 1); localOrder.splice(to, 0, drag.c); renderHand(); }
+    }
+  });
+  function endDrag(e, cancel) {
+    if (!drag || (e && e.pointerId !== drag.pid)) return;
+    clearTimeout(drag.timer);
+    if (drag.active) {
+      if (drag.ghost) drag.ghost.remove();
+      suppressClick = !cancel;
+      setTimeout(() => { suppressClick = false; }, 400);
+      const o = localOrder.slice();
+      drag = null;
+      sendOrder(o);
+    } else drag = null;
+  }
+  document.addEventListener('pointerup', e => endDrag(e, false));
+  document.addEventListener('pointercancel', e => endDrag(e, true));
+  document.addEventListener('touchmove', e => { if (drag && drag.active) e.preventDefault(); }, { passive: false });
+  document.addEventListener('contextmenu', e => { if (e.target.closest('#hand')) e.preventDefault(); });
+
+  // Bildschirm anlassen, solange gespielt wird
+  let wake = null;
+  async function keepAwake() {
+    try { if (!wake && navigator.wakeLock && !document.hidden) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch (e) {}
+  }
+
+  // Startseite: ein paar Karten als Fächer
+  if (!code) {
+    const fan = ['7H', 'QD', 'KS', '3C', 'AS'];
+    $('fan').innerHTML = fan.map((c, i) => cardHTML(c, '', `tabindex="-1" disabled style="transform:translateX(-50%) rotate(${(i - 2) * 11}deg) translateY(${Math.abs(i - 2) * 6}px);transform-origin:50% 140%;z-index:${c === 'KS' ? 9 : i}"`)).join('');
+  }
+
+  render();
+  if (code) connect();
+})();
+</script>
+</body>
+</html>
